@@ -3,8 +3,13 @@ package com.example.user.horizontalgallery;
 
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.os.Build;
 import android.os.Bundle;
+import android.support.annotation.RequiresApi;
 import android.support.v7.app.AppCompatActivity;
+import android.util.DisplayMetrics;
+import android.util.Log;
 import android.util.LruCache;
 import android.widget.GridView;
 import android.widget.ImageView;
@@ -13,28 +18,46 @@ public class GalleryActivity extends AppCompatActivity {
   private boolean isLandscape;
   private GridView horizontalGridView;
   private GridViewAdapter adapter;
-  // public static final String[] IMAGES_URL = {"http://images.memes.com/meme/1299491", "http://images.memes.com/meme/1299490", "http://images.memes.com/meme/1299489", "http://images.memes.com/meme/1299488", "http://images.memes.com/meme/1299487"};
   public static String[] IMAGES_URL;
-  public static final int rowsLandscape = 2;
-  public static final int rowsPortrait = 4;
+  public static final int ROWS_LANDSCAPE = 2;
+  public static final int ROWS_PORTRAIT = 4;
+  public static final String PLACEHOLDER_KEY = "PLACEHOLDER";
+  public int reqWidth;
+  public int reqHeight;
   private LruCache<String, Bitmap> memoryCache;
 
 
+  @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_gallery);
     fill_IMAGES_URL(30);
 
-    isLandscape = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
-    horizontalGridView = (GridView) findViewById(R.id.horizontal_gridView);
+    setupMemCache();
 
-    adapter = new GridViewAdapter();
-    adapter.setContext(this); //can????
+    isLandscape = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+
+
+    DisplayMetrics metrics = new DisplayMetrics();
+    getWindowManager().getDefaultDisplay().getMetrics(metrics);
+    horizontalGridView = (GridView) findViewById(R.id.horizontal_gridView);
+    if (isLandscape) {
+      horizontalGridView.setNumColumns(ROWS_LANDSCAPE);
+      reqWidth = (metrics.widthPixels - (ROWS_LANDSCAPE - 1) * horizontalGridView.getVerticalSpacing()) / ROWS_LANDSCAPE;
+    } else {
+      horizontalGridView.setNumColumns(ROWS_PORTRAIT);
+      reqWidth = (metrics.widthPixels - (ROWS_PORTRAIT - 1) * horizontalGridView.getVerticalSpacing())/ ROWS_PORTRAIT;
+    }
+    reqHeight = reqWidth;
+
+    final Bitmap placeholder = decodeSampledPlaceholder();
+    adapter = new GridViewAdapter(reqWidth, reqHeight);
+    adapter.setContext(this);
     adapter.setOnLoadBitmapListener(new OnLoadBitmapListener() {
       @Override
       public void loadBitmap(int position, ImageView imageView) {
-        final String imageKey = String.valueOf(position);
+        final String imageKey = position + " " + reqWidth + " " + reqHeight;
         final Bitmap bitmap = getBitmapFromMemCache(imageKey);
         if (bitmap != null) {
           imageView.setImageBitmap(bitmap);
@@ -46,21 +69,19 @@ public class GalleryActivity extends AppCompatActivity {
                 addBitmapToMemoryCache(key, bitmap);
               }
             });
-            final AsyncDrawable asyncDrawable =
-                    new AsyncDrawable(getResources(), /*BitmapFactory.decodeResource(getResources(), R.drawable.placeholder)*/null, task);
+            final AsyncDrawable asyncDrawable = new AsyncDrawable(getResources(), placeholder, task);
             imageView.setImageDrawable(asyncDrawable);
-            task.execute(position);
+            task.execute(position, reqWidth, reqHeight);
           }
         }
       }
     });
-
     horizontalGridView.setAdapter(adapter);
-    int countImages = IMAGES_URL.length;
-    // horizontalGridView.setNumColumns(isLandscape ? (countImages + rowsLandscape - 1) / rowsLandscape : (countImages + rowsPortrait - 1) / rowsPortrait);
-    horizontalGridView.setNumColumns(isLandscape ? rowsLandscape : rowsPortrait);
+  }
+
+  private void setupMemCache() {
     final int maxMemory = (int) (Runtime.getRuntime().maxMemory() / 1024);
-    final int cacheSize = maxMemory / 8;
+    final int cacheSize = maxMemory / 4;
 
     RetainFragment retainFragment = RetainFragment.findOrCreateRetainFragment(getFragmentManager());
     memoryCache = retainFragment.retainedCache;
@@ -88,8 +109,36 @@ public class GalleryActivity extends AppCompatActivity {
     }
   }
 
+  @Override
+  protected void onDestroy() {
+    memoryCache.remove(PLACEHOLDER_KEY);
+    super.onDestroy();
+  }
+
   public Bitmap getBitmapFromMemCache(String key) {
     return memoryCache.get(key);
+  }
+
+  public Bitmap decodeSampledPlaceholder() {
+    Bitmap placeholder = null;
+    if (memoryCache != null) {
+      placeholder = memoryCache.get(PLACEHOLDER_KEY);
+    }
+    if (placeholder == null) {
+      // First decode with inJustDecodeBounds=true to check dimensions
+      final BitmapFactory.Options options = new BitmapFactory.Options();
+      options.inJustDecodeBounds = true;
+      BitmapFactory.decodeResource(getResources(), R.drawable.placeholder, options);
+      // Calculate inSampleSize
+      Log.d("placeholder's size", reqWidth + " " + reqHeight);
+      options.inSampleSize = BitmapWorkerTask.calculateInSampleSize(options, reqWidth, reqHeight);
+      Log.d("placeholder's sampling", String.valueOf(options.inSampleSize));
+      // Decode placeholder with inSampleSize set
+      options.inJustDecodeBounds = false;
+      placeholder = BitmapFactory.decodeResource(getResources(), R.drawable.placeholder, options);
+      memoryCache.put(PLACEHOLDER_KEY, placeholder);
+    }
+    return placeholder;
   }
 
 

@@ -8,6 +8,14 @@ import android.widget.BaseAdapter;
 import android.widget.ImageView;
 
 public class GridViewAdapter extends BaseAdapter {
+  private int reqWidth;
+  private int reqHeight;
+
+  public GridViewAdapter(int reqWidth, int reqHeight) {
+    super();
+    this.reqWidth = reqWidth;
+    this.reqHeight = reqHeight;
+  }
 
   private OnLoadBitmapListener onLoadBitmapListener;
   private Context context;
@@ -40,10 +48,8 @@ public class GridViewAdapter extends BaseAdapter {
     ImageView imageView;
     if (view == null) {
       imageView = new ImageView(context);
-      imageView.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-      int length = 100;
-      imageView.setMaxHeight(length);
-      imageView.setMaxWidth(length);
+      imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+      imageView.setLayoutParams(new ViewGroup.LayoutParams(reqWidth, reqHeight));
     } else {
       imageView = (ImageView) view;
     }

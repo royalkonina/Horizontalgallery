@@ -20,18 +20,19 @@ public class BitmapWorkerTask extends AsyncTask<Integer, Void, Bitmap> {
   public BitmapWorkerTask(ImageView imageView, OnUpdateMemCacheListener onUpdateMemCacheListener) {
     imageViewReference = new WeakReference<ImageView>(imageView);
     this.onUpdateMemCacheListener = onUpdateMemCacheListener;
-
   }
 
   @Override
   protected Bitmap doInBackground(Integer... params) {
     data = params[0];
-    Bitmap bitmap = decodeSampledBitmap(data, 100, 100);
-    onUpdateMemCacheListener.addToMemCache(String.valueOf(data), bitmap);
+    int reqWidth = params[1];
+    int reqHeight = params[2];
+    Bitmap bitmap = decodeSampledBitmapFromURL(data, reqWidth, reqHeight);
+    onUpdateMemCacheListener.addToMemCache(data + " " + reqWidth + " " + reqHeight, bitmap);
     return bitmap;
   }
 
-  public static Bitmap decodeSampledBitmap(int resId, int reqWidth, int reqHeight) {
+  public static Bitmap decodeSampledBitmapFromURL(int resId, int reqWidth, int reqHeight) {
     Bitmap bitmap = null;
 
     // First decode with inJustDecodeBounds=true to check dimensions
@@ -41,21 +42,18 @@ public class BitmapWorkerTask extends AsyncTask<Integer, Void, Bitmap> {
       URL url = new URL(GalleryActivity.IMAGES_URL[resId]);
       BitmapFactory.decodeStream(url.openConnection().getInputStream(), null, options);
       // Calculate inSampleSize
-
-      Log.d("SampleSizeBefore", String.valueOf(options.inSampleSize));
       options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
-      Log.d("SampleSize", String.valueOf(options.inSampleSize));
       // Decode bitmap with inSampleSize set
       options.inJustDecodeBounds = false;
       bitmap = BitmapFactory.decodeStream(url.openConnection().getInputStream(), null, options);
+      Log.d("BitmapSizeAfterSampling", bitmap.getHeight() + "x" + bitmap.getWidth());
     } catch (IOException e) {
       e.printStackTrace();
     }
     return bitmap;
   }
 
-  public static int calculateInSampleSize(
-          BitmapFactory.Options options, int reqWidth, int reqHeight) {
+  public static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
     // Raw height and width of image
     final int height = options.outHeight;
     final int width = options.outWidth;
