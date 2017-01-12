@@ -5,7 +5,6 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
-import android.util.Log;
 import android.widget.ImageView;
 
 import java.io.IOException;
@@ -46,7 +45,7 @@ public class BitmapWorkerTask extends AsyncTask<Integer, Void, Bitmap> {
       // Decode bitmap with inSampleSize set
       options.inJustDecodeBounds = false;
       bitmap = BitmapFactory.decodeStream(url.openConnection().getInputStream(), null, options);
-      Log.d("BitmapSizeAfterSampling", bitmap.getHeight() + "x" + bitmap.getWidth());
+      // Log.d("BitmapSizeAfterSampling", bitmap.getHeight() + "x" + bitmap.getWidth());
     } catch (IOException e) {
       e.printStackTrace();
     }

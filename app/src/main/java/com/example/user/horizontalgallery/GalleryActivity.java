@@ -8,16 +8,17 @@ import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.RequiresApi;
 import android.support.v7.app.AppCompatActivity;
-import android.util.DisplayMetrics;
+import android.support.v7.widget.GridLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.util.LruCache;
-import android.widget.GridView;
+import android.view.Display;
 import android.widget.ImageView;
+
+import static android.widget.GridLayout.HORIZONTAL;
 
 public class GalleryActivity extends AppCompatActivity {
   private boolean isLandscape;
-  private GridView horizontalGridView;
-  private GridViewAdapter adapter;
   public static String[] IMAGES_URL;
   public static final int ROWS_LANDSCAPE = 2;
   public static final int ROWS_PORTRAIT = 4;
@@ -25,35 +26,37 @@ public class GalleryActivity extends AppCompatActivity {
   public int reqWidth;
   public int reqHeight;
   private LruCache<String, Bitmap> memoryCache;
+  private RecyclerView recyclerView;
+  private RecyclerViewAdapter adapter;
 
 
   @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
-    setContentView(R.layout.activity_gallery);
+    setContentView(R.layout.a_gallery);
     fill_IMAGES_URL(30);
 
     setupMemCache();
 
     isLandscape = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
 
-
-    DisplayMetrics metrics = new DisplayMetrics();
-    getWindowManager().getDefaultDisplay().getMetrics(metrics);
-    horizontalGridView = (GridView) findViewById(R.id.horizontal_gridView);
+    recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
+    Display display = getWindowManager().getDefaultDisplay();
+    int height = display.getHeight() - getSupportActionBar().getHeight();
     if (isLandscape) {
-      horizontalGridView.setNumColumns(ROWS_LANDSCAPE);
-      reqWidth = (metrics.widthPixels - (ROWS_LANDSCAPE - 1) * horizontalGridView.getVerticalSpacing()) / ROWS_LANDSCAPE;
+      recyclerView.setLayoutManager(new GridLayoutManager(this, ROWS_LANDSCAPE, HORIZONTAL, false));
+      reqWidth = height / ROWS_LANDSCAPE;
     } else {
-      horizontalGridView.setNumColumns(ROWS_PORTRAIT);
-      reqWidth = (metrics.widthPixels - (ROWS_PORTRAIT - 1) * horizontalGridView.getVerticalSpacing())/ ROWS_PORTRAIT;
+      recyclerView.setLayoutManager(new GridLayoutManager(this, ROWS_PORTRAIT, HORIZONTAL, false));
+      reqWidth = height / ROWS_PORTRAIT;
     }
     reqHeight = reqWidth;
 
     final Bitmap placeholder = decodeSampledPlaceholder();
-    adapter = new GridViewAdapter(reqWidth, reqHeight);
-    adapter.setContext(this);
+
+    adapter = new RecyclerViewAdapter(reqWidth, reqHeight);
+
     adapter.setOnLoadBitmapListener(new OnLoadBitmapListener() {
       @Override
       public void loadBitmap(int position, ImageView imageView) {
@@ -76,23 +79,22 @@ public class GalleryActivity extends AppCompatActivity {
         }
       }
     });
-    horizontalGridView.setAdapter(adapter);
+    recyclerView.setAdapter(adapter);
   }
 
   private void setupMemCache() {
     final int maxMemory = (int) (Runtime.getRuntime().maxMemory() / 1024);
     final int cacheSize = maxMemory / 4;
-
-    RetainFragment retainFragment = RetainFragment.findOrCreateRetainFragment(getFragmentManager());
-    memoryCache = retainFragment.retainedCache;
+    memoryCache = MemoryCache.getInstance().retainedCache;
     if (memoryCache == null) {
+      Log.d("setupMemCache", "memCache == null");
       memoryCache = new LruCache<String, Bitmap>(cacheSize) {
         @Override
         protected int sizeOf(String key, Bitmap bitmap) {
           return bitmap.getByteCount() / 1024;
         }
       };
-      retainFragment.retainedCache = memoryCache;
+      MemoryCache.getInstance().retainedCache = memoryCache;
     }
   }
 

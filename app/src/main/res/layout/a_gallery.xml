@@ -6,13 +6,10 @@
               tools:context=".GalleryActivity"
     >
 
-    <GridView
-        android:id="@+id/horizontal_gridView"
-        android:layout_width="fill_parent"
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/recycler_view"
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_gravity="center"
-        android:horizontalSpacing="10dp"
-        android:verticalSpacing="24dp"
         />
 
 </LinearLayout>
